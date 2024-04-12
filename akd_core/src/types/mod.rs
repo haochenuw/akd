@@ -462,7 +462,6 @@ pub struct UpdateProof {
     pub commitment_nonce: Vec<u8>,
 }
 
-/// This proof is just an array of [`UpdateProof`]s.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde_serialization",
@@ -475,6 +474,24 @@ pub struct HistoryProof {
     pub until_marker_vrf_proofs: Vec<Vec<u8>>,
     /// Proof that the values until the next marker version did not exist at this time
     pub non_existence_until_marker_proofs: Vec<NonMembershipProof>,
+    /// VRF proofs for the labels of future marker entries
+    pub future_marker_vrf_proofs: Vec<Vec<u8>>,
+    /// Proof that future markers did not exist
+    pub non_existence_of_future_marker_proofs: Vec<NonMembershipProof>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "serde_serialization",
+    derive(serde::Serialize, serde::Deserialize)
+)]
+pub struct HistoryProofV2 {
+    /// The update proofs in the key history
+    pub update_proofs: Vec<UpdateProof>,
+    /// VRF Proofs for the labels of the values for past markers
+    pub past_marker_vrf_proofs: Vec<Vec<u8>>,
+    /// Proof that the values for the past markers exist
+    pub existence_of_past_marker_proofs: Vec<MembershipProof>,
     /// VRF proofs for the labels of future marker entries
     pub future_marker_vrf_proofs: Vec<Vec<u8>>,
     /// Proof that future markers did not exist

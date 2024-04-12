@@ -492,7 +492,8 @@ pub mod tree_node;
 pub mod local_auditing;
 
 pub use akd_core::{
-    configuration, configuration::*, ecvrf, hash, hash::Digest, proto, types::*, verify, ARITY,
+    configuration, configuration::*, ecvrf, hash, hash::Digest, proto, types::*, verify,
+    verify::history::HistoryParams, ARITY,
 };
 
 #[macro_use]
@@ -501,7 +502,7 @@ mod utils;
 // ========== Type re-exports which are commonly used ========== //
 pub use append_only_zks::Azks;
 pub use client::HistoryVerificationParams;
-pub use directory::{Directory, HistoryParams};
+pub use directory::Directory;
 pub use helper_structs::EpochHash;
 
 // ========== Constants and type aliases ========== //

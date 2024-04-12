@@ -160,6 +160,11 @@
 //! A client verifies this proof by first verifying each of the update proofs, checking that they are in decreasing
 //! consecutive order by version. Then, it verifies the remaining non-membership proofs.
 //!
+//! ## History Proofs V2
+//!
+//! History Proof V2 is accessible via [`Directory::key_history_v2`] and serves the same purpose as history proofs, with a more
+//! robust security guarantee for limited histories.
+//!
 //! ## Audit proofs
 //!
 //! An audit proof allows for an auditor to verify, given two root hashes corresponding to consecutive epochs, that the first

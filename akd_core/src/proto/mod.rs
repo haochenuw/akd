@@ -513,6 +513,71 @@ impl TryFrom<&specs::types::HistoryProof> for crate::HistoryProof {
 }
 
 // ==============================================================
+// HistoryProofV2
+// ==============================================================
+
+impl From<&crate::HistoryProofV2> for specs::types::HistoryProofV2 {
+    fn from(input: &crate::HistoryProofV2) -> Self {
+        Self {
+            update_proofs: input
+                .update_proofs
+                .iter()
+                .map(|proof| proof.into())
+                .collect::<Vec<_>>(),
+            past_marker_vrf_proofs: input.past_marker_vrf_proofs.to_vec(),
+            existence_of_past_marker_proofs: input
+                .existence_of_past_marker_proofs
+                .iter()
+                .map(|proof| proof.into())
+                .collect::<Vec<_>>(),
+            future_marker_vrf_proofs: input.future_marker_vrf_proofs.to_vec(),
+            non_existence_of_future_marker_proofs: input
+                .non_existence_of_future_marker_proofs
+                .iter()
+                .map(|proof| proof.into())
+                .collect::<Vec<_>>(),
+            ..Default::default()
+        }
+    }
+}
+
+impl TryFrom<&specs::types::HistoryProofV2> for crate::HistoryProofV2 {
+    type Error = ConversionError;
+
+    fn try_from(input: &specs::types::HistoryProofV2) -> Result<Self, Self::Error> {
+        let update_proofs = convert_from_vector!(input.update_proofs, crate::UpdateProof);
+
+        let past_marker_vrf_proofs = input
+            .past_marker_vrf_proofs
+            .iter()
+            .map(|item| item.to_vec())
+            .collect::<Vec<_>>();
+        let existence_of_past_marker_proofs = convert_from_vector!(
+            input.existence_of_past_marker_proofs,
+            crate::MembershipProof
+        );
+
+        let future_marker_vrf_proofs = input
+            .future_marker_vrf_proofs
+            .iter()
+            .map(|item| item.to_vec())
+            .collect::<Vec<_>>();
+        let non_existence_of_future_marker_proofs = convert_from_vector!(
+            input.non_existence_of_future_marker_proofs,
+            crate::NonMembershipProof
+        );
+
+        Ok(Self {
+            update_proofs,
+            past_marker_vrf_proofs,
+            existence_of_past_marker_proofs,
+            future_marker_vrf_proofs,
+            non_existence_of_future_marker_proofs,
+        })
+    }
+}
+
+// ==============================================================
 // SingleAppendOnlyProof
 // ==============================================================
 

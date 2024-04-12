@@ -15,12 +15,14 @@ use crate::storage::manager::StorageManager;
 use crate::storage::types::{DbRecord, ValueState, ValueStateRetrievalFlag};
 use crate::storage::Database;
 use crate::{
-    AkdLabel, AkdValue, AppendOnlyProof, AzksElement, Digest, EpochHash, HistoryProof, LookupProof,
-    NonMembershipProof, UpdateProof,
+    AkdLabel, AkdValue, AppendOnlyProof, AzksElement, Digest, EpochHash, HistoryProof,
+    HistoryProofV2, LookupProof, MembershipProof, NonMembershipProof, UpdateProof,
 };
 
 use crate::VersionFreshness;
 use akd_core::configuration::Configuration;
+use akd_core::utils::get_marker_versions;
+use akd_core::verify::history::HistoryParams;
 use log::{error, info};
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
@@ -447,6 +449,7 @@ where
     /// this function returns all the values ever associated with it,
     /// and the epoch at which each value was first committed to the server state.
     /// It also returns the proof of the latest version being served at all times.
+    #[deprecated(since = "0.12.0-pre.1", note = "Please use `key_history_v2` instead")]
     pub async fn key_history(
         &self,
         akd_label: &AkdLabel,
@@ -465,18 +468,7 @@ where
         // apply filters specified by HistoryParams struct
         user_data = match params {
             HistoryParams::Complete => user_data,
-            HistoryParams::MostRecentInsecure(n) => {
-                user_data.into_iter().take(n).collect::<Vec<_>>()
-            }
-            HistoryParams::SinceEpochInsecure(epoch) => {
-                user_data = user_data
-                    .into_iter()
-                    .filter(|val| val.epoch >= epoch)
-                    .collect::<Vec<_>>();
-                // Ordering should be maintained after filtering, but let's re-sort just in case
-                user_data.sort_by(|a, b| b.epoch.cmp(&a.epoch));
-                user_data
-            }
+            HistoryParams::MostRecent(n) => user_data.into_iter().take(n).collect::<Vec<_>>(),
         };
 
         if user_data.is_empty() {
@@ -573,6 +565,145 @@ where
                 update_proofs,
                 until_marker_vrf_proofs,
                 non_existence_until_marker_proofs,
+                future_marker_vrf_proofs,
+                non_existence_of_future_marker_proofs,
+            },
+            root_hash,
+        ))
+    }
+
+    /// Takes in the current state of the server and a label.
+    /// If the label is present in the current state,
+    /// this function returns all the values ever associated with it,
+    /// and the epoch at which each value was first committed to the server state.
+    /// It also returns the proof of the latest version being served at all times.
+    pub async fn key_history_v2(
+        &self,
+        akd_label: &AkdLabel,
+        params: HistoryParams,
+    ) -> Result<(HistoryProofV2, EpochHash), AkdError> {
+        // The guard will be dropped at the end of the proof generation
+        let _guard = self.cache_lock.read().await;
+
+        let current_azks = self.retrieve_azks().await?;
+        let current_epoch = current_azks.get_latest_epoch();
+        let mut user_data = self.storage.get_user_data(akd_label).await?.states;
+
+        // reverse sort from highest epoch to lowest
+        user_data.sort_by(|a, b| b.epoch.cmp(&a.epoch));
+
+        // apply filters specified by HistoryParams struct
+        user_data = match params {
+            HistoryParams::Complete => user_data,
+            HistoryParams::MostRecent(n) => user_data.into_iter().take(n).collect::<Vec<_>>(),
+        };
+
+        if user_data.is_empty() {
+            let msg = if let Ok(username_str) = std::str::from_utf8(akd_label) {
+                format!("User {username_str}")
+            } else {
+                format!("User {akd_label:?}")
+            };
+            return Err(AkdError::Storage(StorageError::NotFound(msg)));
+        }
+
+        #[cfg(feature = "preload_history")]
+        {
+            let mut lookup_infos = vec![];
+            for ud in user_data.iter() {
+                if let Ok(lo) = self.build_lookup_info(ud).await {
+                    lookup_infos.push(lo);
+                }
+            }
+            current_azks
+                .preload_lookup_nodes(&self.storage, &lookup_infos)
+                .await?;
+        }
+
+        let mut update_proofs = Vec::<UpdateProof>::new();
+        let mut start_version = user_data[0].version;
+        let mut end_version = 0;
+        for user_state in user_data {
+            // Ignore states in storage that are ahead of current directory epoch
+            if user_state.epoch <= current_epoch {
+                let proof = self
+                    .create_single_update_proof(akd_label, &user_state)
+                    .await?;
+                update_proofs.push(proof);
+                start_version = if user_state.version < start_version {
+                    user_state.version
+                } else {
+                    start_version
+                };
+                end_version = if user_state.version > end_version {
+                    user_state.version
+                } else {
+                    end_version
+                };
+            }
+        }
+
+        if start_version == 0 {
+            return Err(AkdError::Directory(DirectoryError::InvalidVersion(
+                "Computed start version for the key history should be non-zero".to_string(),
+            )));
+        }
+
+        let (past_marker_versions, future_marker_versions) =
+            get_marker_versions(start_version, end_version, current_epoch);
+
+        let mut past_marker_vrf_proofs = Vec::<Vec<u8>>::new();
+        let mut existence_of_past_marker_proofs = Vec::<MembershipProof>::new();
+
+        for version in past_marker_versions {
+            let node_label = self
+                .vrf
+                .get_node_label::<TC>(akd_label, VersionFreshness::Fresh, version)
+                .await?;
+            let existence_vrf = self
+                .vrf
+                .get_label_proof::<TC>(akd_label, VersionFreshness::Fresh, version)
+                .await?;
+            past_marker_vrf_proofs.push(existence_vrf.to_bytes().to_vec());
+            existence_of_past_marker_proofs.push(
+                current_azks
+                    .get_membership_proof::<TC, _>(&self.storage, node_label)
+                    .await?,
+            );
+        }
+
+        let mut future_marker_vrf_proofs = Vec::<Vec<u8>>::new();
+        let mut non_existence_of_future_marker_proofs = Vec::<NonMembershipProof>::new();
+
+        for version in future_marker_versions {
+            let node_label = self
+                .vrf
+                .get_node_label::<TC>(akd_label, VersionFreshness::Fresh, version)
+                .await?;
+            non_existence_of_future_marker_proofs.push(
+                current_azks
+                    .get_non_membership_proof::<TC, _>(&self.storage, node_label)
+                    .await?,
+            );
+            future_marker_vrf_proofs.push(
+                self.vrf
+                    .get_label_proof::<TC>(akd_label, VersionFreshness::Fresh, version)
+                    .await?
+                    .to_bytes()
+                    .to_vec(),
+            );
+        }
+
+        let root_hash = EpochHash(
+            current_epoch,
+            current_azks.get_root_hash::<TC, _>(&self.storage).await?,
+        );
+
+        Ok((
+            HistoryProofV2 {
+                update_proofs,
+                past_marker_vrf_proofs,
+                existence_of_past_marker_proofs,
                 future_marker_vrf_proofs,
                 non_existence_of_future_marker_proofs,
             },
@@ -832,6 +963,15 @@ where
         self.0.key_history(uname, params).await
     }
 
+    /// Read-only access to [Directory::key_history_v2](Directory::key_history_v2).
+    pub async fn key_history_v2(
+        &self,
+        uname: &AkdLabel,
+        params: HistoryParams,
+    ) -> Result<(HistoryProofV2, EpochHash), AkdError> {
+        self.0.key_history_v2(uname, params).await
+    }
+
     /// Read-only access to [Directory::poll_for_azks_changes](Directory::poll_for_azks_changes).
     pub async fn poll_for_azks_changes(
         &self,
@@ -858,27 +998,6 @@ where
     /// Read-only access to [Directory::get_public_key](Directory::get_public_key).
     pub async fn get_public_key(&self) -> Result<VRFPublicKey, AkdError> {
         self.0.get_public_key().await
-    }
-}
-
-/// The parameters that dictate how much of the history proof to return to the consumer
-/// (either a complete history, or some limited form).
-#[derive(Copy, Clone)]
-pub enum HistoryParams {
-    /// Returns a complete history for a label
-    Complete,
-    /// Returns up to the most recent N updates for a label. This is not secure, and
-    /// should not be used in a production environment.
-    MostRecentInsecure(usize),
-    /// Returns all updates since a specified epoch (inclusive). This is not secure, and
-    /// should not be used in a production environment.
-    SinceEpochInsecure(u64),
-}
-
-impl Default for HistoryParams {
-    /// By default, we return a complete history
-    fn default() -> Self {
-        Self::Complete
     }
 }
 

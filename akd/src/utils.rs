@@ -51,3 +51,24 @@ macro_rules! test_config {
         }
     };
 }
+
+/// Macro used for running tests with different configurations
+#[cfg(any(test, feature = "public_tests"))]
+#[macro_export]
+macro_rules! versioned_test_config {
+    ( $x:ident, $($version:expr),*) => {
+            $(paste::paste! {
+                #[cfg(feature = "whatsapp_v1")]
+                #[tokio::test]
+                async fn [<$x _ whatsapp_v1_config _ $version>]() -> Result<(), AkdError> {
+                    $x::<$crate::WhatsAppV1Configuration>($version).await
+                }
+                #[cfg(feature = "experimental")]
+                #[tokio::test]
+                async fn [<$x _ experimental_config _ $version>]() -> Result<(), AkdError> {
+                    $x::<$crate::ExperimentalConfiguration<$crate::ExampleLabel>>($version).await
+                }
+            })*
+
+    };
+}
