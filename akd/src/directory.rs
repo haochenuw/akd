@@ -954,6 +954,7 @@ where
         self.0.batch_lookup(unames).await
     }
 
+    #[allow(deprecated)]
     /// Read-only access to [Directory::key_history](Directory::key_history).
     pub async fn key_history(
         &self,

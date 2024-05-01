@@ -162,8 +162,18 @@
 //!
 //! ## History Proofs V2
 //!
-//! History Proof V2 is accessible via [`Directory::key_history_v2`] and serves the same purpose as history proofs, with a more
-//! robust security guarantee for limited histories.
+//! [HistoryProofV2] supercedes [HistoryProof]. It serves the same purpose, with a more robust security guarantee for limited histories.
+//! [HistoryProofV2] is generated via [`key_history_v2`] and verified through [`key_history_verify_v2`].
+//! Let `n` be the latest version, `n_prev_pow` be the power of 2 that is at most n, `n_next_pow` the next power of 2 after `n`, and `epoch_prev_pow` be the power of 2 that
+//! is at most the current epoch. The [HistoryProofV2] consists of:
+//! - A list of [UpdateProof]s, one for each version, which each contain a membership proof for the version `n` being fresh,
+//! and a membership proof for the version `n-1` being stale
+//! - A membership proof for `n_prev_pow` (or empty if n is a power of 2)
+//! - A series of non-membership proofs for each version in the range `[n+1, n_next_pow]`
+//! - A series of non-membership proofs for each power of 2 in the range `[n_next_pow, epoch_prev_pow]`
+//!
+//! A client verifies this proof by first verifying each of the update proofs, checking that they are in decreasing
+//! consecutive order by version. Then, it verifies the remaining proofs.
 //!
 //! ## Audit proofs
 //!

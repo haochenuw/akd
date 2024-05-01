@@ -81,6 +81,6 @@ impl From<protobuf::Error> for VerificationError {
 
 #[cfg(feature = "public_tests")]
 pub use base::{verify_membership_for_tests_only, verify_nonmembership_for_tests_only};
-
+#[allow(deprecated)]
 pub use history::{key_history_verify, key_history_verify_v2, HistoryVerificationParams};
 pub use lookup::lookup_verify;

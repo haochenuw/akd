@@ -201,10 +201,8 @@
 //! As mentioned above, security is defined by consistent views of the value for a key at any epoch.
 //! To this end, a server running an AKD needs to provide a way to check the history of a key. Note that in this case,
 //! the server is trusted for validating that a particular client is authorized to run a history check on a particular key.
-//! We can use [`Directory::key_history`] to prove the history of a key's values at a given epoch.
-//!
-//! The [HistoryParams] field can be used to limit the history that we issue proofs for, but in this
-//! example we default to a complete history. For more information on the parameters, see the
+//! We can use [`Directory::key_history_v2`] to prove the history of a key's values at a given epoch. The [HistoryParams] field
+//! can be used to limit the history that we issue proofs for, but in this example we default to a complete history. For more information on the parameters, see the
 //! [History Parameters](#history-parameters) section.
 //! ```
 //! # use akd::storage::StorageManager;
@@ -238,16 +236,28 @@
 //! let EpochHash(epoch2, root_hash2) = akd.publish(
 //!     vec![(AkdLabel::from("first entry"), AkdValue::from("updated value"))],
 //! ).await.expect("Error with publishing");
-//! let (history_proof, _) = akd.key_history(
+//! let (history_proof, _) = akd.key_history_v2(
 //!     &AkdLabel::from("first entry"),
 //!     HistoryParams::default(),
 //! ).await.expect("Could not generate proof");
 //! # });
 //! ```
-//! To verify the above proof, we call [`client::key_history_verify`],
+//! To verify the above proof, we call [`client::key_history_verify_v2`],
 //! with respect to the latest root hash and public key, as follows. This function
 //! returns a list of values that have been associated with the specified entry, in
 //! reverse chronological order.
+//!
+//!
+//! We also use [`HistoryVerificationParams`] as an argument to the verification function, which encodes two values.
+//! First, it encodes a [`HistoryParams`]. Note that the same argument for [`HistoryParams`] that was used to generate
+//! the key history proof must also be used to verify the proof. Otherwise, verification may fail.
+//!
+//! [`HistoryVerificationParams`] also allows the consumer to specify whether or not a "tombstoned" value should be
+//! accepted in place of a valid value for the corresponding entry. This is useful
+//! in scenarios where the consumer wishes to verify that a particular entry exists,
+//! but does not care about the value associated with it. The default behavior is to
+//! not accept tombstoned values, but [`HistoryVerificationParams::AllowMissingValues`] can
+//! be specified to enable this behavior.
 //! ```
 //! # use akd::storage::StorageManager;
 //! # use akd::storage::memory::AsyncInMemoryDatabase;
@@ -279,12 +289,12 @@
 //! #     let _ = akd.publish(
 //! #         vec![(AkdLabel::from("first entry"), AkdValue::from("updated value"))],
 //! #     ).await.expect("Error with publishing");
-//! #     let (history_proof, epoch_hash) = akd.key_history(
+//! #     let (history_proof, epoch_hash) = akd.key_history_v2(
 //! #         &AkdLabel::from("first entry"),
 //! #         HistoryParams::default(),
 //! #     ).await.expect("Could not generate proof");
 //! let public_key = akd.get_public_key().await.expect("Could not fetch public key");
-//! let key_history_result = akd::client::key_history_verify::<Config>(
+//! let key_history_result = akd::client::key_history_verify_v2::<Config>(
 //!     public_key.as_bytes(),
 //!     epoch_hash.hash(),
 //!     epoch_hash.epoch(),

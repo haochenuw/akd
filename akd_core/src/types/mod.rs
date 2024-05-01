@@ -462,6 +462,19 @@ pub struct UpdateProof {
     pub commitment_nonce: Vec<u8>,
 }
 
+/// A client can query for a history of all versions associated with a given [AkdLabel], or the most recent k versions.
+/// The server returns a [HistoryProof] which can be verified to extract a list of [VerifyResult]s, one for each
+/// version.
+///
+/// Let `n` be the latest version, `n_next_pow` the next power of 2 after `n`, and `epoch_prev_pow` be the power of 2 that
+/// is at most the current epoch. The [HistoryProof] consists of:
+/// - A list of [UpdateProof]s, one for each version, which each contain a membership proof for the version `n` being fresh,
+/// and a membership proof for the version `n-1` being stale
+/// - A series of non-membership proofs for each version in the range `[n+1, n_next_pow]`
+/// - A series of non-membership proofs for each power of 2 in the range `[n_next_pow, epoch_prev_pow]`
+///
+/// A client verifies this proof by first verifying each of the update proofs, checking that they are in decreasing
+/// consecutive order by version. Then, it verifies the remaining non-membership proofs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde_serialization",
@@ -480,6 +493,18 @@ pub struct HistoryProof {
     pub non_existence_of_future_marker_proofs: Vec<NonMembershipProof>,
 }
 
+/// [HistoryProofV2] supercedes [HistoryProof]. It serves the same purpose, with a more robust security guarantee for limited histories.
+/// [HistoryProofV2] is generated via [`key_history_v2`] and verified through [`key_history_verify_v2`].
+/// Let `n` be the latest version, `n_prev_pow` be the power of 2 that is at most n, `n_next_pow` the next power of 2 after `n`, and `epoch_prev_pow` be the power of 2 that
+/// is at most the current epoch. The [HistoryProofV2] consists of:
+/// - A list of [UpdateProof]s, one for each version, which each contain a membership proof for the version `n` being fresh,
+/// and a membership proof for the version `n-1` being stale
+/// - A membership proof for `n_prev_pow` (or empty if n is a power of 2)
+/// - A series of non-membership proofs for each version in the range `[n+1, n_next_pow]`
+/// - A series of non-membership proofs for each power of 2 in the range `[n_next_pow, epoch_prev_pow]`
+///
+/// A client verifies this proof by first verifying each of the update proofs, checking that they are in decreasing
+/// consecutive order by version. Then, it verifies the remaining proofs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde_serialization",

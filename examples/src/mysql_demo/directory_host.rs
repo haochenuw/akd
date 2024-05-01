@@ -116,6 +116,7 @@ where
                     }
                 }
             }
+            #[allow(deprecated)]
             (DirectoryCommand::KeyHistory(a), Some(response)) => {
                 match directory
                     .key_history(&AkdLabel::from(&a), HistoryParams::default())

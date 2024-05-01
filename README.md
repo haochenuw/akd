@@ -56,8 +56,9 @@ Alex Chernyak ([@alexme22](https://github.com/alexme22)),
 Dillon George ([@dillonrg](https://github.com/dillonrg)),
 Sean Lawlor ([@slawlor](https://github.com/slawlor)),
 Kevin Lewi ([@kevinlewi](https://github.com/kevinlewi)),
-Jasleen Malvai ([@jasleen1](https://github.com/jasleen1)), and
-Ercan Ozturk ([@eozturk1](https://github.com/eozturk1)).
+Jasleen Malvai ([@jasleen1](https://github.com/jasleen1)),
+Ercan Ozturk ([@eozturk1](https://github.com/eozturk1)), and
+Hao Chen ([@haochenuw](https://github.com/haochenuw)).
 To learn more about contributing to this project, [see this document](https://github.com/facebook/akd/blob/main/CONTRIBUTING.md).
 
 License

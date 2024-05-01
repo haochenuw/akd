@@ -44,17 +44,23 @@ impl Default for HistoryParams {
 #[derive(Copy, Clone)]
 pub enum HistoryVerificationParams {
     /// No customization to the verification procedure
-    Default { historyParams: HistoryParams },
+    Default {
+        /// the HistoryParams that was used to generate the history proof
+        history_params: HistoryParams,
+    },
     /// Allows for the encountering of missing (tombstoned) values
     /// instead of attempting to check if their hash matches the leaf node
     /// hash
-    AllowMissingValues { historyParams: HistoryParams },
+    AllowMissingValues {
+        /// the HistoryParams that was used to generate the history proof
+        history_params: HistoryParams,
+    },
 }
 
 impl Default for HistoryVerificationParams {
     fn default() -> Self {
         Self::Default {
-            historyParams: HistoryParams::default(),
+            history_params: HistoryParams::default(),
         }
     }
 }
@@ -354,8 +360,8 @@ pub fn key_history_verify_v2<TC: Configuration>(
     let mut results = Vec::new();
 
     let params: HistoryParams = match verification_params {
-        HistoryVerificationParams::Default { historyParams } => historyParams,
-        HistoryVerificationParams::AllowMissingValues { historyParams } => historyParams,
+        HistoryVerificationParams::Default { history_params } => history_params,
+        HistoryVerificationParams::AllowMissingValues { history_params } => history_params,
     };
     println!("Hao, verify v2 got params {:?}", params);
 
@@ -430,7 +436,7 @@ fn verify_single_update_proof<TC: Configuration>(
 ) -> Result<VerifyResult, VerificationError> {
     // Verify the VRF and membership proof for the corresponding label for the version being updated to.
     match (params, &proof.value) {
-        (HistoryVerificationParams::AllowMissingValues { historyParams }, bytes)
+        (HistoryVerificationParams::AllowMissingValues { .. }, bytes)
             if bytes.0 == crate::TOMBSTONE =>
         {
             // A tombstone was encountered, we need to just take the
