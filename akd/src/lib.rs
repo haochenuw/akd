@@ -440,8 +440,7 @@
 //! The [HistoryParams] enum can be used to limit the number of updates for a given entry that the server provides
 //! to the client. The enum has the following options:
 //! - [HistoryParams::Complete]: Includes a complete history of all updates to an entry. This is the default option.
-//! - [HistoryParams::MostRecentInsecure]: Includes (at most) the most recent input number of updates for an entry.
-//! - [HistoryParams::SinceEpochInsecure]: Includes all updates to an entry since a given epoch.
+//! - [HistoryParams::MostRecent]: Includes (at most) the most recent input number of updates for an entry.
 //!
 //! Note that the "insecure" options are not recommended for use in production, as they do not provide a
 //! complete history of updates, and lack inclusion proofs for earlier entries. These options should only be

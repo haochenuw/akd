@@ -687,7 +687,7 @@ macro_rules! test_limited_key_history {
                 current_epoch,
                 AkdLabel::from("hello"),
                 history_proof,
-                HistoryVerificationParams::Default {historyParams: history_params_1},
+                HistoryVerificationParams::Default {history_params: history_params_1},
             )?;
 
             // // Take the top 3 results, and check that we're getting the right epoch updates
@@ -707,7 +707,7 @@ macro_rules! test_limited_key_history {
                 current_epoch,
                 AkdLabel::from("hello"),
                 history_proof,
-                HistoryVerificationParams::Default {historyParams: history_params_3},
+                HistoryVerificationParams::Default {history_params: history_params_3},
             )?;
 
             Ok(())
@@ -1243,7 +1243,7 @@ async fn [<test_tombstoned_key_history _ $verify _ $tc:lower>]() -> Result<(), A
         AkdLabel::from("hello"),
         history_proof,
         HistoryVerificationParams::AllowMissingValues {
-            historyParams: HistoryParams::Complete,
+            history_params: HistoryParams::Complete,
         },
     )?;
     assert_ne!(crate::TOMBSTONE, results[0].value.0);
@@ -1521,7 +1521,7 @@ async fn [<test_key_history_verify_malformed _ $verify _ $tc:lower>]() -> Result
         current_epoch,
         target_label.clone(),
         key_history_proof.clone(),
-        HistoryVerificationParams::Default {historyParams: history_params_10},
+        HistoryVerificationParams::Default {history_params: history_params_10},
     )?;
 
     let mut malformed_proof_1 = key_history_proof.clone();
@@ -1558,7 +1558,7 @@ async fn [<test_key_history_verify_malformed _ $verify _ $tc:lower>]() -> Result
             current_epoch,
             target_label.clone(),
             malformed_proof,
-            HistoryVerificationParams::Default {historyParams: history_params_10},
+            HistoryVerificationParams::Default {history_params: history_params_10},
         )
         .is_err());
     }
