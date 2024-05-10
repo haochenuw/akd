@@ -5,6 +5,7 @@ on:
       - main
   pull_request:
     types: [opened, reopened, synchronize]
+  workflow_dispatch:
 
 jobs:
   run-tests:
@@ -42,7 +43,7 @@ jobs:
 
       - name: Verify MySQL db connection
         run: |
-          while ! docker exec akd-test-db mysql --user=root --password=example -e "SHOW DATABASES" >/dev/null 2>&1; do
+          while ! docker exec akd-test-db mysql --user=root --password=example -e "SHOW DATABASES"; do
             sleep 1
           done
           echo "MySQL container is up"
