@@ -45,6 +45,7 @@ jobs:
         run: |
           while ! docker exec akd-test-db mysql --user=root --password=example -e "SHOW DATABASES"; do
             sleep 1
+            docker logs akd-test-db
           done
           echo "MySQL container is up"
 
